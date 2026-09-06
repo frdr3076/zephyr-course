@@ -1,0 +1,95 @@
+Metadata-Version: 2.4
+Name: tree-sitter-cmake
+Version: 0.7.2.post1
+Summary: CMake grammar for tree-sitter
+Author: Uy Ha
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/uyha/tree-sitter-cmake
+Keywords: incremental,parsing,tree-sitter,cmake
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Compilers
+Classifier: Topic :: Text Processing :: Linguistic
+Classifier: Typing :: Typed
+Requires-Python: >=3.10
+Description-Content-Type: text/x-rst
+License-File: LICENSE
+Provides-Extra: core
+Requires-Dist: tree-sitter~=0.24; extra == "core"
+Dynamic: license-file
+
+tree-sitter-cmake
+=================
+
+.. image:: https://img.shields.io/pypi/v/tree-sitter-cmake.svg
+    :target: https://pypi.org/project/tree-sitter-cmake/
+    :alt: PyPI
+
+.. image:: https://img.shields.io/pypi/l/tree-sitter-cmake.svg
+    :target: https://pypi.org/project/tree-sitter-cmake/
+    :alt: License
+
+This is a `tree-sitter <https://tree-sitter.github.io/tree-sitter/>`_ grammar for CMake.
+
+**Note**: This repository is a fork of `uyha/tree-sitter-cmake <https://github.com/uyha/tree-sitter-cmake>`_.
+If you encounter any issues or have questions, please submit them to the `issue tracker <https://github.com/ZionDoki/tree-sitter-cmake/issues>`_.
+
+Installation
+------------
+
+You can install the Python binding via pip:
+
+.. code-block:: bash
+
+    pip install tree-sitter-cmake
+
+Usage
+-----
+
+Here's a simple example of how to use this grammar to parse CMake code in Python:
+
+.. code-block:: python
+
+    import tree_sitter_cmake
+    import tree_sitter
+
+    # Load the CMake language
+    cmake_language = tree_sitter.Language(tree_sitter_cmake.language())
+
+    # Initialize the parser
+    parser = tree_sitter.Parser(cmake_language)
+
+    # Parse some CMake code
+    source_code = b"""
+    cmake_minimum_required(VERSION 3.10)
+    project(Test)
+
+    set(CMAKE_CXX_STANDARD 17)
+    add_executable(main main.cpp)
+    """
+
+    tree = parser.parse(source_code)
+    root_node = tree.root_node
+
+    # Print the syntax tree as an S-expression
+    print(str(root_node))
+
+Parsed Syntax
+-------------
+
+This grammar supports most CMake constructs, including:
+
+- **Commands**: General commands, flow control (if, while, foreach), functions, and macros.
+- **Arguments**: Quoted, bracket, and unquoted arguments.
+- **Variables**: Normal, cache, and environment variable references.
+- **Comments**: Line and bracket comments.
+
+Requirements
+------------
+
+- Python >= 3.10
+- tree-sitter ~= 0.24
+
+License
+-------
+
+MIT

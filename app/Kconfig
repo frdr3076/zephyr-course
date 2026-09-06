@@ -1,0 +1,112 @@
+# ---- Module 03 Homework by Franco Rota ----
+
+# 1.[*] LED Subsystem --->
+menuconfig LED_SUBSYSTEM
+    bool "LED Subsystem"
+    default y
+if LED_SUBSYSTEM
+    # 2a. LED blink sleep time (1s (medium))
+    choice
+        prompt "LED blink sleep time (1s (medium))"
+        default BLINK_SLEEP_1000MS
+        
+        config BLINK_SLEEP_250MS
+            bool "Very Fast"
+            
+        config BLINK_SLEEP_500MS
+            bool "Fast"
+        
+        config BLINK_SLEEP_1000MS
+            bool "Normal"
+        
+        config BLINK_SLEEP_2000MS
+            bool "Slow"
+
+    endchoice
+
+    config BLINK_SLEEP_TIME_MS
+        int 
+        default 250 if BLINK_SLEEP_250MS
+        default 500 if BLINK_SLEEP_500MS
+        default 1000 if BLINK_SLEEP_1000MS
+        default 2000 if BLINK_SLEEP_2000MS
+        default 0
+
+        help
+            blink speed config.
+
+    # 2b. [ ] Advanced LED settings
+    menuconfig ADVANCED_LED_SETTINGS
+        bool "Advanced LED settings"
+        default n
+
+        if ADVANCED_LED_SETTINGS
+
+            # 3a. LED brightness (0-100)
+            config LED_BRIGHTNESS
+                int "LED brightness (0-100)"
+                range 0 100
+                default 100
+
+            # 3b. Fade duration (ms)
+            config LED_FADE_DURATION_MS
+                int "Fade duration (ms)"
+                range 0 5000
+                default 500
+                    
+        endif #ADVANCED_LED_SETTINGS
+        
+        # 3c. Expert settings
+        menu "Expert settings"
+            visible if ADVANCED_LED_SETTINGS
+            
+            # 4a. Enable LED debugging
+            config LED_DEBUG
+                bool "Enable LED debugging"
+                default n
+            
+            # 4b. Custom blink pattern
+            config CUSTOM_BLINK
+                bool "Custom blink pattern"
+                default n
+        endmenu #Expert settings
+
+
+endif #LED_SUBSYSTEM
+
+source "Kconfig.zephyr"
+
+
+# ------- Module 03 - Lecture Kconfig file: --------------
+### Useful commands: 
+###     build: west build -b frdm_mcxa156 app -p always
+###     menuconf: west build -t menuconfig
+
+
+#choice
+#    prompt "LED blink speed"
+#    default BLINK_SLEEP_1000MS
+
+#config BLINK_SLEEP_250MS
+#    bool "Fast"
+
+#config BLINK_SLEEP_1000MS
+#    bool "Normal"
+
+#config BLINK_SLEEP_2000MS
+#    bool "Slow"
+
+#endchoice
+
+#config BLINK_SLEEP_TIME_MS
+#    int 
+#    default 250 if BLINK_SLEEP_250MS
+#    default 1000 if BLINK_SLEEP_1000MS
+#    default 2000 if BLINK_SLEEP_2000MS
+#    default 0
+
+#    help
+#        help string can be multiline.
+#            Like this one.
+
+#source "Kconfig.zephyr"

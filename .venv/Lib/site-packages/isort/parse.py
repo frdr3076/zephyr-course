@@ -1,0 +1,492 @@
+"""Defines parsing functions used by isort for parsing import definitions"""
+
+from collections import OrderedDict, defaultdict
+from functools import partial
+from itertools import chain
+from typing import TYPE_CHECKING, NamedTuple, TypedDict
+from warnings import warn
+
+from . import place
+from ._parse_utils import (
+    collect_import_continuation,
+    import_type,
+    normalize_from_import_string,
+    normalize_line,
+    skip_line,
+    strip_syntax,
+)
+from .comments import parse as parse_comments
+from .exceptions import MissingSection
+from .settings import DEFAULT_CONFIG, Config
+
+if TYPE_CHECKING:
+    CommentsAboveDict = TypedDict(
+        "CommentsAboveDict", {"straight": dict[str, list[str]], "from": dict[str, list[str]]}
+    )
+
+    CommentsDict = TypedDict(
+        "CommentsDict",
+        {
+            "from": dict[str, list[str]],
+            "straight": dict[str, list[str]],
+            "nested": dict[str, dict[str, str]],
+            "above": CommentsAboveDict,
+        },
+    )
+
+
+def _infer_line_separator(contents: str) -> str:
+    if "\r\n" in contents:
+        return "\r\n"
+    if "\r" in contents:
+        return "\r"
+    return "\n"
+
+
+ParsedImports = TypedDict(
+    "ParsedImports",
+    {
+        "straight": dict[str, bool],
+        "from": dict[str, dict[str, bool]],
+        "lazy_straight": dict[str, bool],
+        "lazy_from": dict[str, dict[str, bool]],
+    },
+)
+
+
+class ParsedContent(NamedTuple):
+    in_lines: list[str]
+    lines_without_imports: list[str]
+    import_index: int
+    place_imports: dict[str, list[str]]
+    import_placements: dict[str, str]
+    as_map: dict[str, dict[str, list[str]]]
+    imports: dict[str, ParsedImports]
+    categorized_comments: "CommentsDict"
+    change_count: int
+    original_line_count: int
+    line_separator: str
+    sections: tuple[str, ...]
+    verbose_output: list[str]
+    trailing_commas: set[str]
+
+
+# Ignore DeepSource cyclomatic complexity check for this function. It is one
+# the main entrypoints so sort of expected to be complex.
+# skipcq: PY-R1000
+def file_contents(contents: str, config: Config = DEFAULT_CONFIG) -> ParsedContent:
+    """Parses a python file taking out and categorizing imports."""
+    line_separator: str = config.line_ending or _infer_line_separator(contents)
+    # ``str.splitlines`` also treats characters such as form feed as line
+    # boundaries, even though Python's universal-newline handling does not.
+    # Normalize actual newline sequences explicitly so those characters stay
+    # attached to their source line.
+    in_lines = contents.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    if not contents:
+        in_lines = []
+
+    out_lines = []
+    original_line_count = len(in_lines)
+    finder = partial(place.module, config=config)
+
+    line_count = len(in_lines)
+
+    place_imports: dict[str, list[str]] = {}
+    import_placements: dict[str, str] = {}
+    as_map: dict[str, dict[str, list[str]]] = {
+        "straight": defaultdict(list),
+        "from": defaultdict(list),
+    }
+    imports: OrderedDict[str, ParsedImports] = OrderedDict()
+    verbose_output: list[str] = []
+
+    for section in chain(config.sections, config.forced_separate):
+        imports[section] = {
+            "straight": OrderedDict(),
+            "from": OrderedDict(),
+            "lazy_straight": OrderedDict(),
+            "lazy_from": OrderedDict(),
+        }
+    categorized_comments: CommentsDict = {
+        "from": {},
+        "straight": {},
+        "nested": {},
+        "above": {"straight": {}, "from": {}},
+    }
+
+    trailing_commas: set[str] = set()
+
+    index = 0
+    import_index = -1
+    in_quote = ""
+    while index < line_count:
+        line = in_lines[index]
+        index += 1
+        statement_index = index
+        (skipping_line, in_quote) = skip_line(line, in_quote=in_quote)
+
+        if (
+            line in config.section_comments or line in config.section_comments_end
+        ) and not skipping_line:
+            if import_index == -1:  # pragma: no branch
+                import_index = index - 1
+            continue
+
+        if "isort:imports-" in line and line.startswith("#"):
+            section = line.split("isort:imports-")[-1].split()[0].upper()
+            place_imports[section] = []
+            import_placements[line] = section
+        elif "isort: imports-" in line and line.startswith("#"):
+            section = line.split("isort: imports-")[-1].split()[0].upper()
+            place_imports[section] = []
+            import_placements[line] = section
+
+        if skipping_line:
+            out_lines.append(line)
+            continue
+
+        lstripped_line = line.lstrip()
+        if (
+            config.float_to_top
+            and import_index == -1
+            and line
+            and not in_quote
+            and not lstripped_line.startswith("#")
+            and not lstripped_line.startswith("'''")
+            and not lstripped_line.startswith('"""')
+        ):
+            if not lstripped_line.startswith("import") and not lstripped_line.startswith("from"):
+                import_index = index - 1
+                while import_index and not in_lines[import_index - 1]:
+                    import_index -= 1
+            else:
+                commentless = line.split("#", 1)[0].strip()
+                if (
+                    ("isort:skip" in line or "isort: skip" in line)
+                    and "(" in commentless
+                    and ")" not in commentless
+                ):
+                    import_index = index
+
+                    starting_line = line
+                    while "isort:skip" in starting_line or "isort: skip" in starting_line:
+                        commentless = starting_line.split("#", 1)[0]
+                        if (
+                            "(" in commentless
+                            and not commentless.rstrip().endswith(")")
+                            and import_index < line_count
+                        ):
+                            while import_index < line_count and not commentless.rstrip().endswith(
+                                ")"
+                            ):
+                                commentless = in_lines[import_index].split("#", 1)[0]
+                                import_index += 1
+                        else:
+                            import_index += 1
+
+                        if import_index >= line_count:
+                            break
+
+                        starting_line = in_lines[import_index]
+
+        line, *end_of_line_comment = line.split("#", 1)
+        if ";" in line:
+            statements = [line.strip() for line in line.split(";")]
+        else:
+            statements = [line]
+        if end_of_line_comment:
+            statements[-1] = f"{statements[-1]}#{end_of_line_comment[0]}"
+
+        for statement in statements:
+            line, raw_line = normalize_line(statement)
+            type_of_import = import_type(line, config) or ""
+            raw_lines = [raw_line]
+            if not type_of_import:
+                out_lines.append(raw_line)
+                continue
+
+            # Detect PEP 810 lazy imports (``lazy import X`` / ``lazy from X import Y``).
+            # We strip the ``lazy `` prefix so the rest of the parsing logic works normally
+            # on the resulting ``import X`` / ``from X import Y`` string.  The original
+            # lazy type is remembered in ``is_lazy`` and used later when storing the result.
+            is_lazy = type_of_import in ("lazy_straight", "lazy_from")
+            if is_lazy:
+                line = line[len("lazy ") :]
+                type_of_import = "straight" if type_of_import == "lazy_straight" else "from"
+
+            if import_index == -1:
+                import_index = index - 1
+            nested_comments = {}
+            import_string, comment = parse_comments(line)
+            comments = [comment] if comment is not None else []
+            line_parts = [part for part in strip_syntax(import_string).strip().split(" ") if part]
+            if type_of_import == "from" and len(line_parts) == 2 and comments:
+                nested_comments[line_parts[-1]] = comments[0]
+
+            def _get_next_line() -> tuple[str, str | None]:
+                nonlocal index
+                if index >= line_count:
+                    raise StopIteration
+                result = parse_comments(in_lines[index])
+                index += 1
+                return result
+
+            line, import_string, extra_lines = collect_import_continuation(
+                line, import_string, _get_next_line, line_separator
+            )
+            for extra_line in extra_lines:
+                raw_lines.append(extra_line.line)
+                # If during parsing of the continuation lines we encounter a comment, we record it.
+                if extra_line.comment is not None:
+                    comments.append(extra_line.comment)
+                    stripped_line = strip_syntax(extra_line.line).strip()
+                    if (
+                        type_of_import == "from"
+                        and stripped_line
+                        and " " not in stripped_line.replace(" as ", "")
+                    ):
+                        nested_comments[stripped_line] = extra_line.comment
+
+            if type_of_import == "from":
+                import_string = normalize_from_import_string(import_string)
+                if "import " not in import_string:
+                    out_lines.extend(raw_lines)
+                    continue
+
+            just_imports = [
+                item.replace("{|", "{ ").replace("|}", " }")
+                for item in strip_syntax(import_string).split()
+            ]
+
+            attach_comments_to: list[str] | None = None
+            direct_imports = just_imports[1:]
+            straight_import = True
+            top_level_module = ""
+            if "as" in just_imports and (just_imports.index("as") + 1) < len(just_imports):
+                straight_import = False
+                while "as" in just_imports:
+                    nested_module = None
+                    as_index = just_imports.index("as")
+                    if type_of_import == "from":
+                        nested_module = just_imports[as_index - 1]
+                        top_level_module = just_imports[0]
+                        module = top_level_module + "." + nested_module
+                        as_name = just_imports[as_index + 1]
+                        direct_imports.remove(nested_module)
+                        direct_imports.remove(as_name)
+                        direct_imports.remove("as")
+                        if nested_module == as_name and config.remove_redundant_aliases:
+                            pass
+                        elif as_name not in as_map["from"][module]:  # pragma: no branch
+                            as_map["from"][module].append(as_name)
+
+                        full_name = f"{nested_module} as {as_name}"
+                        associated_comment = nested_comments.get(full_name)
+                        if associated_comment is not None:
+                            categorized_comments["nested"].setdefault(top_level_module, {})[
+                                full_name
+                            ] = associated_comment
+                            if associated_comment in comments:  # pragma: no branch
+                                comments.pop(comments.index(associated_comment))
+                    else:
+                        module = just_imports[as_index - 1]
+                        as_name = just_imports[as_index + 1]
+                        if module == as_name and config.remove_redundant_aliases:
+                            pass
+                        elif as_name not in as_map["straight"][module]:
+                            as_map["straight"][module].append(as_name)
+
+                    if comments and attach_comments_to is None:
+                        if nested_module and config.combine_as_imports:
+                            attach_comments_to = categorized_comments["from"].setdefault(
+                                f"{top_level_module}.__combined_as__", []
+                            )
+                        else:
+                            if type_of_import == "from" or (
+                                config.remove_redundant_aliases and as_name == module.split(".")[-1]
+                            ):
+                                attach_comments_to = categorized_comments["straight"].setdefault(
+                                    module, []
+                                )
+                            else:
+                                attach_comments_to = categorized_comments["straight"].setdefault(
+                                    f"{module} as {as_name}", []
+                                )
+                    del just_imports[as_index : as_index + 2]
+
+            if type_of_import == "from":
+                import_from = just_imports.pop(0)
+                placed_module = finder(import_from)
+                if config.verbose and not config.only_modified:
+                    print(f"from-type place_module for {import_from} returned {placed_module}")
+
+                elif config.verbose:
+                    verbose_output.append(
+                        f"from-type place_module for {import_from} returned {placed_module}"
+                    )
+                if placed_module == "":
+                    warn(
+                        f"could not place module {import_from} of line {line} --"
+                        " Do you need to define a default section?",
+                        stacklevel=2,
+                    )
+
+                if placed_module and placed_module not in imports:
+                    raise MissingSection(import_module=import_from, section=placed_module)
+
+                root = imports[placed_module]["lazy_from" if is_lazy else type_of_import]
+                for import_name in just_imports:
+                    associated_comment = nested_comments.get(import_name)
+                    if associated_comment is not None:
+                        categorized_comments["nested"].setdefault(import_from, {})[import_name] = (
+                            associated_comment
+                        )
+                        if associated_comment in comments:  # pragma: no branch
+                            comments.pop(comments.index(associated_comment))
+                if (
+                    config.force_single_line
+                    and comments
+                    and attach_comments_to is None
+                    and len(just_imports) == 1
+                ):
+                    nested_from_comments = categorized_comments["nested"].setdefault(
+                        import_from, {}
+                    )
+                    existing_comment = nested_from_comments.get(just_imports[0], "")
+                    nested_from_comments[just_imports[0]] = (
+                        f"{existing_comment}{'; ' if existing_comment else ''}{'; '.join(comments)}"
+                    )
+                    comments = []
+
+                if comments and attach_comments_to is None:
+                    attach_comments_to = categorized_comments["from"].setdefault(import_from, [])
+
+                if len(out_lines) > max(import_index, 1) - 1:
+                    last = out_lines[-1].rstrip() if out_lines else ""
+                    while (
+                        last.startswith("#")
+                        and not last.endswith('"""')
+                        and not last.endswith("'''")
+                        and "isort:imports-" not in last
+                        and "isort: imports-" not in last
+                        and not config.treat_all_comments_as_code
+                        and last.strip() not in config.treat_comments_as_code
+                    ):
+                        categorized_comments["above"]["from"].setdefault(import_from, []).insert(
+                            0, out_lines.pop(-1)
+                        )
+                        if out_lines:
+                            last = out_lines[-1].rstrip()
+                        else:
+                            last = ""
+                    if statement_index - 1 == import_index:  # pragma: no cover
+                        import_index -= len(
+                            categorized_comments["above"]["from"].get(import_from, [])
+                        )
+
+                if import_from not in root:
+                    root[import_from] = OrderedDict(
+                        (module, module in direct_imports) for module in just_imports
+                    )
+                else:
+                    root[import_from].update(
+                        (module, root[import_from].get(module, False) or module in direct_imports)
+                        for module in just_imports
+                    )
+
+                if comments and attach_comments_to is not None:
+                    attach_comments_to.extend(comments)
+
+                if (
+                    just_imports
+                    and just_imports[-1]
+                    and "," in import_string.split(just_imports[-1])[-1]
+                ):
+                    trailing_commas.add(import_from)
+            else:
+                assert type_of_import == "straight"  # noqa: S101 # Only needed for type checker
+                if comments and attach_comments_to is not None:
+                    attach_comments_to.extend(comments)
+                    comments = []
+
+                for module in just_imports:
+                    if comments:
+                        categorized_comments["straight"][module] = comments
+                        comments = []
+
+                    if len(out_lines) > max(import_index, +1, 1) - 1:
+                        last = out_lines[-1].rstrip() if out_lines else ""
+                        while (
+                            last.startswith("#")
+                            and not last.endswith('"""')
+                            and not last.endswith("'''")
+                            and "isort:imports-" not in last
+                            and "isort: imports-" not in last
+                            and not config.treat_all_comments_as_code
+                            and last.strip() not in config.treat_comments_as_code
+                        ):
+                            categorized_comments["above"]["straight"].setdefault(module, []).insert(
+                                0, out_lines.pop(-1)
+                            )
+                            if out_lines:
+                                last = out_lines[-1].rstrip()
+                            else:
+                                last = ""
+                        if index - 1 == import_index:
+                            import_index -= len(
+                                categorized_comments["above"]["straight"].get(module, [])
+                            )
+                    placed_module = finder(module)
+                    if config.verbose and not config.only_modified:
+                        print(f"else-type place_module for {module} returned {placed_module}")
+
+                    elif config.verbose:
+                        verbose_output.append(
+                            f"else-type place_module for {module} returned {placed_module}"
+                        )
+                    if placed_module == "":
+                        warn(
+                            f"could not place module {module} of line {line} --"
+                            " Do you need to define a default section?",
+                            stacklevel=2,
+                        )
+                        imports.setdefault(
+                            "",
+                            {
+                                "straight": OrderedDict(),
+                                "from": OrderedDict(),
+                                "lazy_straight": OrderedDict(),
+                                "lazy_from": OrderedDict(),
+                            },
+                        )
+
+                    if placed_module and placed_module not in imports:
+                        raise MissingSection(import_module=module, section=placed_module)
+
+                    straight_import |= bool(
+                        imports[placed_module]["lazy_straight" if is_lazy else type_of_import].get(
+                            module, False
+                        )
+                    )
+                    imports[placed_module]["lazy_straight" if is_lazy else type_of_import][
+                        module
+                    ] = straight_import
+
+    change_count = len(out_lines) - original_line_count
+
+    return ParsedContent(
+        in_lines=in_lines,
+        lines_without_imports=out_lines,
+        import_index=import_index,
+        place_imports=place_imports,
+        import_placements=import_placements,
+        as_map=as_map,
+        imports=imports,
+        categorized_comments=categorized_comments,
+        change_count=change_count,
+        original_line_count=original_line_count,
+        line_separator=line_separator,
+        sections=config.sections,
+        verbose_output=verbose_output,
+        trailing_commas=trailing_commas,
+    )
