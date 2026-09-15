@@ -1,0 +1,9 @@
+
+
+/{
+    aliases{
+	    app-led = &red_led; // red_led is led0 gpio3 pin 12 (label:node)
+    };
+
+};
+

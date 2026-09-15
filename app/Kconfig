@@ -1,5 +1,17 @@
-# ---- Module 03 Homework by Franco Rota ----
+# ------- Module 04 Homework by Franco Rota -------
 
+config APP_HEARTBEAT_PERIOD_MS
+    int "APP_HEARTBEAT_PERIOD_MS"
+                range 100 2000
+                default 500
+    help
+        Controls the blinking period.
+
+
+# ------- End of Homework ------------------
+
+
+# ------- Module 03 Homework by Franco Rota -------
 # 1.[*] LED Subsystem --->
 menuconfig LED_SUBSYSTEM
     bool "LED Subsystem"
@@ -75,7 +87,7 @@ if LED_SUBSYSTEM
 endif #LED_SUBSYSTEM
 
 source "Kconfig.zephyr"
-
+# ------- End of Homework -------
 
 # ------- Module 03 - Lecture Kconfig file: --------------
 ### Useful commands: 

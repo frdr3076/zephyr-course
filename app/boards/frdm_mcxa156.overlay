@@ -1,0 +1,25 @@
+
+
+
+/{
+  /* // Used default led0 of frdm_mcxa156. Not used leds node.
+     // Comented for exercise l4-task1:
+
+  leds{
+       //compatible: "gpio-leds";
+       led_0: led_0{
+              gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+        };
+	      green_led: led_1{
+              gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+        };
+	      blue_led: led_2{
+              gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
+	      //
+        };
+	//gpios = <&hsgpio0 1 GPIO_ACTIVE_LOW>;
+	//gpios = <&hsgpio0 0 GPIO_ACTIVE_LOW>;
+
+  };
+  */
+};

@@ -1,0 +1,6 @@
+/{
+    aliases{
+	warning-led = &blue_led;
+    };
+
+};
