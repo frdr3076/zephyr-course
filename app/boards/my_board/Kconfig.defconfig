@@ -1,0 +1,2 @@
+config BOARD_MY_BOARD
+	select BOARD_EARLY_INIT_HOOK

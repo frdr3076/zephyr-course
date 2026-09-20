@@ -1,0 +1,6 @@
+board:
+  name: l5_task1
+  full_name: L5 Task 1 Custom Board
+  vendor: nxp
+  socs:
+  - name: mcxa156

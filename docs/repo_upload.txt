@@ -1,0 +1,19 @@
+Upload Assignments Guide
+
+## Clone assignment repo from Gitbash:
+
+    git clone https://github.com/<user>/zephyr-course.git
+    cd zephyr-course
+
+## Upload assignment:
+    
+    git status
+    git add .
+    git commit -m "add assignment 1"
+    git status
+    git tag -a l1-task1 -m "assignmet 1"
+    git push -u origin main
+    git push origin l1-task1
+    Refresh page of github.
+
+
