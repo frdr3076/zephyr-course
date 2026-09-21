@@ -1,0 +1,6 @@
+board:
+  name: l5_task2
+  full_name: Board From Scrath for l5-task2
+  vendor: iomico
+  socs:
+  - name: mcxa156

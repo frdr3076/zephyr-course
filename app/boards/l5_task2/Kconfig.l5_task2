@@ -1,0 +1,5 @@
+# Custom Kconfig
+
+config BOARD_L5_TASK2
+	select SOC_MCXA156 if BOARD_L5_TASK2
+	select SOC_PART_NUMBER_MCXA156VLL
