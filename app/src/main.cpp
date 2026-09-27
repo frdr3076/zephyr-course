@@ -1,6 +1,8 @@
+
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/drivers/sensor.h>
 
 /*Commands:
     Build: west build -b frdm_mcxa156 app -p
@@ -12,7 +14,7 @@
 /* The devicetree node identifier for the "led0" alias. */
 
 //#define LED_NODE DT_ALIAS(warning_led)
-#define LED_NODE DT_ALIAS(led2)
+//#define LED_NODE DT_ALIAS(led2)
 
 //#define LED_NODE DT_ALIAS(app_led)
     /* Method 1: using nodelabel
@@ -29,12 +31,46 @@
 
 //Not used: //#define LED_NODE DT_ALIAS(led0)
 
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED_NODE, gpios);
+
+static const struct device *const our_dev = DEVICE_DT_GET(DT_NODELABEL(our_driver0));
+
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+// Added for driver lecture:
+/*
+namespace {
+    void test(){
+        const struct device *driver = DEVICE_DT_GET(DT_NODELABEL(our_driver0));
+        struct sensor_value val;
+        int ret = sensor_channel_get(driver, SENSOR_CHAN_AMBIENT_TEMP,&val);
+        LOG_INF("Channel ret %d",ret);
+    }
+}
+*/
+
 int main(void)
 {
+    if(!device_is_ready(our_dev)){
+
+        LOG_ERR("our_driver0 is not ready");
+        return 0;
+
+    }
+
+    struct sensor_value val;
+
+    while(1){
+        sensor_sample_fetch(our_dev);                               // LED ON
+        k_msleep(500);                                           
+        sensor_channel_get(our_dev, SENSOR_CHAN_AMBIENT_TEMP, &val); // LED OFF
+        k_msleep(500);
+    
+    } //end while
+
+
+
+    /* // Previous exercises of Device Drivers
     bool led_state = true;
 
     if (!gpio_is_ready_dt(&led)) return 0;
@@ -53,4 +89,5 @@ int main(void)
 
     }
     return 0;
-}
+    */
+} //end main

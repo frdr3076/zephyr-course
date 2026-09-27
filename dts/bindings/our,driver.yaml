@@ -1,0 +1,9 @@
+description: Our simple LED "sensor" driver #defines schema for DTS nodes
+compatible: "our,driver"
+include: base.yaml
+# Enables auto-generated DT_HAS_OUR_DRIVER_ENABLED
+properties:
+  led-gpios:
+    type: phandle-array # handles < &gpio3 0xc 0x1 > red_led
+    required: true
+    description: GPIO del LED que controla el driver

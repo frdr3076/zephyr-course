@@ -1,0 +1,14 @@
+/{
+     our_driver0: our_driver{
+	compatible = "our,driver";
+	led-gpios = < &gpio3 0xc 0x1 >; /* Red LED */
+	status = "okay";
+     };
+
+        our_driver1: our_driver1{
+	compatible = "our,driver";
+	led-gpios = < &gpio3 0xd 0x1 >; /* Green LED */
+	status = "okay";
+     };
+
+};

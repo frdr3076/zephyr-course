@@ -87,6 +87,9 @@ if LED_SUBSYSTEM
 endif #LED_SUBSYSTEM
 
 source "Kconfig.zephyr"
+rsource "drivers/our_driver/Kconfig"
+
+
 # ------- End of Homework -------
 
 # ------- Module 03 - Lecture Kconfig file: --------------

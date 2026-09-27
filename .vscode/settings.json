@@ -1,4 +1,5 @@
 {
     "cmake.sourceDirectory": "C:/Users/User/zephyr-demo/zephyr-course/app",
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "C_Cpp.intelliSenseEngine": "default"
 }

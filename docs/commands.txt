@@ -1,0 +1,4 @@
+BUILD: west build -b frdm_mcxa156 app -p 
+FLASH: west flash
+TERMINAL: python -m serial.tools.miniterm COM13 115200
+(replace COM13 with your port config.)
