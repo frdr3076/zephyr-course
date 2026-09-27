@@ -4,6 +4,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/sensor.h>
 
+#include "our_driver.h" // Task 2
 /*Commands:
     Build: west build -b frdm_mcxa156 app -p
     Flash: west flash
@@ -59,11 +60,14 @@ int main(void)
     }
 
     struct sensor_value val;
+    uint32_t count;
 
     while(1){
         sensor_sample_fetch(our_dev);                               // LED ON
         k_msleep(500);                                           
         sensor_channel_get(our_dev, SENSOR_CHAN_AMBIENT_TEMP, &val); // LED OFF
+        our_driver_increment_counter(our_dev, &count);
+        LOG_INF("main: blink #%u", count);
         k_msleep(500);
     
     } //end while

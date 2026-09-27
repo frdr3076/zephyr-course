@@ -2,9 +2,11 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/device.h>          // DEVICE_DT_INST_DEFINE
 #include <zephyr/logging/log.h>
-
-/* -------------------------------------- Task 1: --------------------------------------*/
 #include <zephyr/drivers/gpio.h>    // gpio_dt_spec, gpio_pin_set_dt
+
+
+// ----------------------- Task 2 ------------------------------------------------------------------
+#include "our_driver.h"
 
 LOG_MODULE_REGISTER(our_driver, LOG_LEVEL_INF); // necesary to use LOG.
 
@@ -15,6 +17,7 @@ struct our_driver_config {
 
 struct our_driver_data{
     int32_t led_state;          // modified at runtime [mutable]
+    uint32_t counter;           // For Task2: Parameter that modifies function
 };
 
 // Private Helpers
@@ -48,6 +51,24 @@ static int our_channel_get(const struct device *dev, enum sensor_channel chan, s
     }
     return ret;
 };
+
+// Implement Extended Function Driver
+
+int our_driver_increment_counter(const struct device *dev, uint32_t *count)
+{   /*
+       Not static because main wouldn't find it
+       main calls this function directly
+    */
+    struct our_driver_data *data = dev->data;
+    data->counter++;
+    if( count != NULL ){
+        *count = data->counter;
+    }
+    LOG_INF("%s: counter = %u",dev->name, data->counter);
+    return 0;
+}
+
+
 
 // Register Sensor API
 // Connects functions get & fetch with code 
