@@ -4,7 +4,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/sensor.h>
 
-#include "our_driver.h" // Task 2
+#include "our_driver.h" // L06-Task 2
+
 /*Commands:
     Build: west build -b frdm_mcxa156 app -p
     Flash: west flash
@@ -62,6 +63,8 @@ int main(void)
     struct sensor_value val;
     uint32_t count;
 
+    // ########## For L7-Task1, I comment this while(1) so shell runs its own thread and LED doesn't toggle by this code. #############
+    /*
     while(1){
         sensor_sample_fetch(our_dev);                               // LED ON
         k_msleep(500);                                           
@@ -71,10 +74,10 @@ int main(void)
         k_msleep(500);
     
     } //end while
+    */
 
 
-
-    /* // Previous exercises of Device Drivers
+    /* // Commented Code from Previous exercises:
     bool led_state = true;
 
     if (!gpio_is_ready_dt(&led)) return 0;
@@ -94,4 +97,7 @@ int main(void)
     }
     return 0;
     */
+
+    return 0; // For L07-Task1
+
 } //end main

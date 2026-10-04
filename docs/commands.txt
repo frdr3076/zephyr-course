@@ -1,4 +1,17 @@
+
+V.ENV: \zephyr-course> .\.venv\Scripts\Activate.ps1
+
+(not used) zephyrproject\.venv\Scripts\activate.bat
+
 BUILD: west build -b frdm_mcxa156 app -p 
 FLASH: west flash
-TERMINAL: python -m serial.tools.miniterm COM13 115200
+TERMINAL: python -m serial.tools.miniterm COM13 115200 --filter direct
 (replace COM13 with your port config.)
+
+------ L7-TASK1: Shell Subsystem ----------------
+On serial port:
+$sensor
+$sensor info
+$sensor fetch
+$sensor read
+$sensor fetch extra

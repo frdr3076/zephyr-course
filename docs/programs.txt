@@ -1,0 +1,4 @@
+L7-TASK1:
+    our_driver_shell.c: Program code here.
+    prj.conf: disable CONFIG_SENSOR_SHELL=n to avoid duplicated definition.
+    main.cpp: Comment while(1) loop for test without interference.
