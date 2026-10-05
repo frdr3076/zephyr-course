@@ -15,7 +15,10 @@ extern "C"{ // main is C++ and driver is C
 
 */
 
-int our_driver_increment_counter(const struct device *dev, uint32_t *count); //receibes instance and modifies data of it.
+int our_driver_increment_counter(const struct device *dev, uint32_t *count); // Receibes instance and modifies data of it.
+
+// L7-TASK2
+int our_driver_set_counter(const struct device *dev, uint32_t value);       //
 
 #ifdef __cplusplus
 

@@ -2,3 +2,8 @@ L7-TASK1:
     our_driver_shell.c: Program code here.
     prj.conf: disable CONFIG_SENSOR_SHELL=n to avoid duplicated definition.
     main.cpp: Comment while(1) loop for test without interference.
+
+L7-TASK2:
+    our_driver.h: added prototype our_driver_increment_counter.
+    our_driver.c: our_driver_set_counter without static to see from another files and reach data of dev->data.
+    our_driver_shell.c: Added cmd_sensor_set & cmd_sensor_inc for setting and incrementing counter

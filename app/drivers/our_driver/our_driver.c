@@ -91,6 +91,18 @@ static int our_driver_init(const struct device *dev)
 
 }
 
+// L7-Task2
+int our_driver_set_counter(const struct device *dev, uint32_t value){
+    
+    struct our_driver_data *data = dev->data;
+
+    data->counter = value;
+    LOG_INF("%s: counter set to %u", dev->name, data->counter);
+    return 0;
+
+}
+
+
 // Instantiation Macro
 #define OUR_DRIVER_DEFINE(inst)  \
     static struct our_driver_data data_##inst; \

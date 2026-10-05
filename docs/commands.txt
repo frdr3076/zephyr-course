@@ -15,3 +15,15 @@ $sensor info
 $sensor fetch
 $sensor read
 $sensor fetch extra
+
+------ L7-TASK2: Shell Subsystem ----------------
+On serial port:
+$ sensor set 10
+$ sensor inc
+
+Commands with error
+$ sensor set        <- SHELL_CMD_ARG (arg missing)
+$ sensor set 5 6    <- SHELL_CMD_ARG (more args than necessary)
+$ sensor set abc    <- shell_error
+$ sensor set 5000   <- shell_error
+$ sensor set -3     <- shell_error
